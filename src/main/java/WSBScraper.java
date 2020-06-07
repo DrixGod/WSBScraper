@@ -14,11 +14,10 @@ public class WSBScraper {
 
     public static void main(String... args) throws IOException, InterruptedException {
         System.out.println("Reading data...");
-        String jsonText = FileHelper.getJsonContent("E:\\dev\\universalredditscraper\\Universal-Reddit-Scraper\\wallstreetbets.json");
+        String jsonText = FileHelper.generateJsonContent();
         System.out.println("Parsing data...");
         ArrayList<WSBPosts> wsbposts = JSONParser.parseJson(jsonText);
-
-        System.out.println("Testing ");
+        System.out.println("Generating comments data...");
         FileHelper.gatherCommentsFromPosts(wsbposts);
     }
 }
