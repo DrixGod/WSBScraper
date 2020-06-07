@@ -26,5 +26,7 @@ public class FileHelper {
         titleList.add("$CHWY Earnings Play, Week of June 8th");
         System.out.println("Gathering comments...");
 
+        System.out.println("Test");
+
     }
 }
