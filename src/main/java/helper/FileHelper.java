@@ -14,19 +14,25 @@ import java.util.List;
 
 public class FileHelper {
 
-    public static String generateJsonContent() throws IOException {
-        File file = null;
-        String s = null;
+    // Change path to file on your environment
+    private static final String pathToFile = "E:\\dev\\Projects\\WSB-Scraper\\";
+    private static File file = null;
+    private static final List<String> specialCharacters = Arrays.asList("?", "%", "/", ":");
 
+    public static String generateJsonContent(String pathToPythonScript, String commandType, String subredditName, String filterBy, int nrOfPosts, String format) throws IOException {
         try {
-            // Get the first 25 posts from /r/wallstreetbets
-            String command = "python E:\\dev\\universalredditscraper\\Universal-Reddit-Scraper\\scraper.py -r wallstreetbets h 25 --json";
+            String command = "python " + pathToPythonScript + " -" + commandType + " " + subredditName + " " + filterBy + " " + nrOfPosts + " --" + format;
+            System.out.println("Executing command: " + command);
             Process p = Runtime.getRuntime().exec(command);
 
+            file = new File(pathToFile + subredditName + ".json");
+
+            // Give the script 5 seconds to create the file.
+            //Thread.sleep(5000);
+
             // Check if the file exists on disk, if not wait until the file gets created.
-            file = new File("E:\\dev\\Projects\\WSB-Scraper\\wallstreetbets.json");
             while(!file.exists()) {
-                System.out.println("File doesn't exist yet!");
+                System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
                 Thread.sleep(5000);
             }
 
@@ -39,24 +45,32 @@ public class FileHelper {
         return Files.readString(file.toPath());
     }
 
-    public static List<String> gatherCommentsFromPosts(ArrayList<WSBPosts> wsbPosts) throws IOException {
-        String s = null;
+    public static File getFile() {
+        return file;
+    }
+
+    public static List<String> gatherCommentsFromPosts(ArrayList<WSBPosts> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException {
         List<String> wsbCommentJsons = new ArrayList<>();
         for (WSBPosts wsbPost : wsbPosts) {
             if (wsbPost.getCommentCount() < 1000) {
                 try {
                     System.out.println("Post: " + wsbPost.getTitle());
+
                     // Call the python script with the -c (comments) argument and the post URL to generate a .json file containing the comments
-                    String command = "python E:\\dev\\universalredditscraper\\Universal-Reddit-Scraper\\scraper.py -c " + wsbPost.getURl() + " 10 --json";
+                    String command = "python " + pathToPythonScript + " -c " + wsbPost.getURl() + " " + nrOfComments + " --" + format;
                     Process p = Runtime.getRuntime().exec(command);
 
-                    // Check if the file exists on disk, if not wait until the file gets created.
                     String fileTitle = replaceSpecialCharacters(wsbPost.getTitle());
-                    File file = new File("E:\\dev\\Projects\\WSB-Scraper\\" + fileTitle + ".json");
+
+                    // Check if the file exists on disk, if not wait until the file gets created.
+                    File file = new File(pathToFile + fileTitle + ".json");
+                    Thread.sleep(5000);
+
                     while (!file.exists()) {
-                        System.out.println("File " + fileTitle + " doesn't exist yet");
+                        System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
                         Thread.sleep(5000);
                     }
+
                     wsbCommentJsons.add(file.getAbsolutePath());
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
@@ -72,20 +86,12 @@ public class FileHelper {
     }
 
     // Files generated on disk can't have special characters, they get replaced by '_'
-    private static String replaceSpecialCharacters(String input) {
-        String output = input;
-        if (input.contains("%")) {
-            output = input.replace("%","_");
-            return output;
+    private static String replaceSpecialCharacters(String postTitle) {
+        for (String specialCharacter : specialCharacters) {
+            if (postTitle.contains(specialCharacter)) {
+                postTitle = postTitle.replace(specialCharacter, "_");
+            }
         }
-        if (input.contains("?")) {
-            output = input.replace("?", "_");
-            return output;
-        }
-        if (input.contains("/")) {
-            output = input.replace("/", "_");
-            return output;
-        }
-        return output;
+        return postTitle;
     }
 }
