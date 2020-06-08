@@ -1,7 +1,7 @@
 package wsb;
 
 
-public class WSBPosts {
+public class WSBPost {
     private String title;
     private String flair;
     private String date;
@@ -17,7 +17,7 @@ public class WSBPosts {
     private int commentCount;
     private String Text;
 
-    public WSBPosts(String title, String flair, String date, int upvotes, double upvoteRatio, String id, String isEdited, boolean isLocked, boolean isNSFW, boolean isSpoiler, boolean isStickied, String URl, int commentCount, String text) {
+    public WSBPost(String title, String flair, String date, int upvotes, double upvoteRatio, String id, String isEdited, boolean isLocked, boolean isNSFW, boolean isSpoiler, boolean isStickied, String URl, int commentCount, String text) {
         this.title = title;
         this.flair = flair;
         this.date = date;

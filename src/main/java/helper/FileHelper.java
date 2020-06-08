@@ -1,11 +1,19 @@
 package helper;
 
-import wsb.WSBPosts;
+import wsb.WSBPost;
 
-import java.io.*;
-import java.nio.file.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import static helper.FilePaths.*;
 
 public class FileHelper {
@@ -18,7 +26,7 @@ public class FileHelper {
 
             file = new File(pathToProject +  subredditName + ".json");
 
-            // Give the script 5 seconds to create the file.
+            // Give the app 5 seconds to create the file.
             Thread.sleep(5000);
 
             // Check if the file exists on disk, if not wait until the file gets created.
@@ -28,7 +36,6 @@ public class FileHelper {
             }
 
         } catch (IOException | InterruptedException e) {
-            System.out.println("exception happened - here's what I know: ");
             e.printStackTrace();
             System.exit(-1);
         }
@@ -46,10 +53,10 @@ public class FileHelper {
         return subredditFile;
     }
 
-    public static void gatherCommentsFromPosts(ArrayList<WSBPosts> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException {
-        List<String> wsbCommentJsons = new ArrayList<>();
+    public static void gatherCommentsFromPosts(ArrayList<WSBPost> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException { ;
+        List<File> wsbCommentFiles = new ArrayList<>();
         File dir = createDirectory(directoryForComments);
-        for (WSBPosts wsbPost : wsbPosts) {
+        for (WSBPost wsbPost : wsbPosts) {
             if (wsbPost.getCommentCount() < 1000) {
                 try {
                     System.out.println("Post: " + wsbPost.getTitle());
@@ -59,18 +66,19 @@ public class FileHelper {
                     Process p = Runtime.getRuntime().exec(command);
 
                     String fileTitle = replaceSpecialCharacters(wsbPost.getTitle());
+                    File file = new File(pathToProject + fileTitle + ".json");
+
+                    // Give the app 5 seconds to create the file.
+                    Thread.sleep(5000);
 
                     // Check if the file exists on disk, if not wait until the file gets created.
-                    File file = new File(pathToProject + fileTitle + ".json");
-                    //Thread.sleep(5000);
-
                     while (!file.exists()) {
                         System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
                         Thread.sleep(5000);
                     }
 
-                    wsbCommentJsons.add(moveFilesToDirectory(dir, file).getAbsolutePath());
-                    file.delete();
+                    wsbCommentFiles.add(moveFilesToDirectory(dir, file));
+
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                     System.exit(-1);
@@ -80,6 +88,8 @@ public class FileHelper {
                 System.out.println("Skipping post " + wsbPost.getTitle() + " because it has " + wsbPost.getCommentCount() + " comments.");
             }
         }
+        Path path = Paths.get(pathToProject + directoryForComments);
+        deleteFilesOlderThanADay(path.toFile());
         System.out.println("Finished gathering comments in JSON format.");
     }
 
@@ -97,7 +107,6 @@ public class FileHelper {
     private static File createDirectory(String directoryName) {
         File dir = new File(pathToProject + directoryName);
         boolean success = true;
-
         if (!dir.exists()) {
             success = dir.mkdir();
         }
@@ -105,20 +114,44 @@ public class FileHelper {
             System.out.println("Error at creating directory");
             System.exit(-1);
         }
-
         return dir;
     }
 
     // Move json file to specific directory
     private static File moveFilesToDirectory(File directory, File fileToMove) throws IOException {
         File newFile = null;
-
+        String pathToFile = directory.getAbsolutePath() + "\\" + fileToMove.getName();
         if (fileToMove.exists() && directory.exists()) {
-            newFile = new File(directory.getAbsolutePath() + "\\" + fileToMove.getName());
-            fileToMove.renameTo(newFile);
-            fileToMove.delete();
+            Files.move(Paths.get(String.valueOf(fileToMove.toPath())), Paths.get(pathToFile), StandardCopyOption.REPLACE_EXISTING);
+            newFile = new File(pathToFile);
         }
 
         return newFile;
+    }
+
+    /**
+     * Since we are getting json files from comments, if we run this app every day we will
+     * have very old posts tha we have to manually delete. Calling this method will delete
+     * any file that wasn't modified in 1 day.
+     * @param directory: the directory to check files
+     */
+    private static void deleteFilesOlderThanADay(File directory){
+        List<Path> files = new ArrayList<>();
+        try (Stream<Path> paths = Files.walk(Paths.get(String.valueOf(directory.toPath())))) {
+            files =  paths
+                    .filter(Files::isRegularFile)
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        for (Path path: files) {
+
+            long diff = new Date().getTime() - path.toFile().lastModified();
+
+            if (diff > 24 * 60 * 60 * 1000) {
+                System.out.println("File " + path.toFile().getName() + " is too old, deleting it.");
+                path.toFile().delete();
+            }
+        }
     }
 }
