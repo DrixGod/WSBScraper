@@ -24,6 +24,7 @@ public final class FilePaths {
     public static final List<String> specialCharacters = Arrays.asList("?", "%", "/", ":");
     public static final String directoryForSubreddit = "subreddit_json";
     public static final String directoryForComments = "comments_json";
+    public static final String directoryForAnalyse = "analyse";
 
     private FilePaths() { }
 }

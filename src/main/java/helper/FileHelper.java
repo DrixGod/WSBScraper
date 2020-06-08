@@ -5,10 +5,7 @@ import wsb.WSBPost;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -18,6 +15,16 @@ import java.util.stream.Stream;
 import static helper.FilePaths.*;
 
 public class FileHelper {
+
+    public static File analyseDirectory;
+
+    public static File createAnalyseDirectory() {
+        analyseDirectory = new File(pathToProject + directoryForAnalyse );
+        if (!analyseDirectory.exists()) {
+            analyseDirectory.mkdir();
+        }
+        return analyseDirectory;
+    }
 
     public static String generateJsonContent(String pathToPythonScript, String commandType, String subredditName, String filterBy, int nrOfPosts, String format) throws IOException, InterruptedException {
         try {
@@ -116,6 +123,51 @@ public class FileHelper {
         }
         System.out.println("Finished parsing comments.");
         return wsbComments;
+    }
+
+    // Example for RCL
+    public static void generateResults(ArrayList<WSBPost> wsbPosts, ArrayList<ArrayList<WSBComment>> wsbComments) throws IOException {
+        System.out.println("Generating results...");
+
+        File resultsFile = new File(analyseDirectory + "\\results_titles.txt");
+        resultsFile.createNewFile();
+        Path pathToResultFile = resultsFile.toPath();
+
+        for (WSBPost wsbPost : wsbPosts) {
+            if (wsbPost.getTitle().contains("RCL")
+                    || wsbPost.getTitle().contains("Royal")
+                    || wsbPost.getTitle().contains("Caribbean")
+                    || wsbPost.getTitle().contains("Cruises")) {
+                System.out.println("Found token: " + wsbPost.getTitle());
+                Files.writeString(pathToResultFile, wsbPost.getTitle(), StandardOpenOption.APPEND);
+            }
+            if (wsbPost.getText().contains("RCL") ||
+                    wsbPost.getText().contains("Royal")
+                    || wsbPost.getText().contains("Caribbean")
+                    || wsbPost.getText().contains("Cruises")) {
+                Files.writeString(pathToResultFile, wsbPost.getText(), StandardOpenOption.APPEND);
+            }
+        }
+
+        resultsFile = new File(analyseDirectory + "\\results_comments.txt");
+        resultsFile.createNewFile();
+        pathToResultFile = resultsFile.toPath();
+        WSBComment wsbComment = null;
+
+        for (int i = 0; i < wsbComments.size(); i++) {
+            for (int j = 0; j < wsbComments.get(i).size(); j++) {
+                wsbComment = wsbComments.get(i).get(j);
+                if (wsbComment.getCommentText().contains("RCL") ||
+                        wsbComment.getCommentText().contains("Royal") ||
+                        wsbComment.getCommentText().contains("Caribbean") ||
+                        wsbComment.getCommentText().contains("Cruises")) {
+                    System.out.println("Found token: " + wsbComment.getCommentText());
+                    Files.writeString(pathToResultFile, wsbComment.getCommentText() + " Upvotes: " + wsbComment.getCommentUpvotes(), StandardOpenOption.APPEND);
+                }
+            }
+        }
+
+        System.out.println("Results generated!");
     }
 
     // Files generated on disk can't have special characters, they get replaced by '_'
