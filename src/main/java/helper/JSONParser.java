@@ -4,8 +4,9 @@ import wsb.WSBComment;
 import wsb.WSBPost;
 import org.json.*;
 
-import java.lang.reflect.Array;
 import java.util.*;
+
+import static helper.FilePaths.nrOfPosts;
 
 public class JSONParser {
 
@@ -18,7 +19,7 @@ public class JSONParser {
         int i = 1;
 
         // 25 posts on the frontpage
-        while (i < 25) {
+        while (i < nrOfPosts) {
             JSONObject post = jsonObject.getJSONObject("Post " + i);
             posts.add(post);
             ++i;
@@ -26,26 +27,23 @@ public class JSONParser {
 
         // convert JSONObject to WSB
         for(JSONObject post : posts) {
-            // skip the daily/weekend discussion thread because it has too many comments
-            if (!post.getString("Title").contains("Discussion Thread")) {
-                // TODO add isNull check for every element
-                wsb = new WSBPost(
-                        post.getString("Title"),
-                        post.isNull("Flair")  ? "" : post.getString("Flair"),
-                        post.getString("Date Created"),
-                        post.getInt("Upvotes"),
-                        post.getDouble("Upvote Ratio"),
-                        post.getString("ID"),
-                        post.getString("Edited?"),
-                        post.getBoolean("Is Locked?"),
-                        post.getBoolean("NSFW?"),
-                        post.getBoolean("Is Spoiler?"),
-                        post.getBoolean("Stickied?"),
-                        post.getString("URL"),
-                        post.getInt("Comment Count"),
-                        post.getString("Text"));
-                wsbList.add(wsb);
-            }
+            // TODO add isNull check for every element
+            wsb = new WSBPost(
+                    post.getString("Title"),
+                    post.isNull("Flair")  ? "" : post.getString("Flair"),
+                    post.getString("Date Created"),
+                    post.getInt("Upvotes"),
+                    post.getDouble("Upvote Ratio"),
+                    post.getString("ID"),
+                    post.getString("Edited?"),
+                    post.getBoolean("Is Locked?"),
+                    post.getBoolean("NSFW?"),
+                    post.getBoolean("Is Spoiler?"),
+                    post.getBoolean("Stickied?"),
+                    post.getString("URL"),
+                    post.getInt("Comment Count"),
+                    post.getString("Text"));
+            wsbList.add(wsb);
         }
 
         return wsbList;

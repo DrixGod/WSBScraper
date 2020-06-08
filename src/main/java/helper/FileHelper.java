@@ -1,5 +1,6 @@
 package helper;
 
+import wsb.WSBComment;
 import wsb.WSBPost;
 
 import java.io.File;
@@ -49,10 +50,6 @@ public class FileHelper {
         return Files.readString(subredditFile.toPath());
     }
 
-    public static File getFile() {
-        return subredditFile;
-    }
-
     public static Path gatherCommentsFromPosts(ArrayList<WSBPost> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException { ;
         File dir = createDirectory(directoryForComments);
         for (WSBPost wsbPost : wsbPosts) {
@@ -61,21 +58,26 @@ public class FileHelper {
                     System.out.println("Post: " + wsbPost.getTitle());
 
                     // Call the python script with the -c (comments) argument and the post URL to generate a .json file containing the comments
-                    String command = "python " + pathToPythonScript + " -c " + wsbPost.getURl() + " " + nrOfComments + " --" + format;
-                    Process p = Runtime.getRuntime().exec(command);
+                    if (wsbPost.getURl().contains("www.reddit.com")) {
+                        String command = "python " + pathToPythonScript + " -c " + wsbPost.getURl() + " " + nrOfComments + " --" + format;
+                        Process p = Runtime.getRuntime().exec(command);
 
-                    String fileTitle = replaceSpecialCharacters(wsbPost.getTitle());
-                    File file = new File(pathToProject + fileTitle + ".json");
 
-                    // Give the app 5 seconds to create the file.
-                    Thread.sleep(5000);
+                        String fileTitle = replaceSpecialCharacters(wsbPost.getTitle());
+                        File file = new File(pathToProject + fileTitle + ".json");
 
-                    // Check if the file exists on disk, if not wait until the file gets created.
-                    while (!file.exists()) {
-                        System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
+                        // Give the app 5 seconds to create the file.
                         Thread.sleep(5000);
+
+                        // Check if the file exists on disk, if not wait until the file gets created.
+                        while (!file.exists()) {
+                            System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
+                            Thread.sleep(5000);
+                        }
+                        moveFilesToDirectory(dir, file);
+                    } else {
+                        System.out.println("Post " + wsbPost.getTitle() + " is linking to some other site.");
                     }
-                    moveFilesToDirectory(dir, file);
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                     System.exit(-1);
@@ -89,6 +91,31 @@ public class FileHelper {
         deleteFilesOlderThanADay(path.toFile());
         System.out.println("Finished gathering comments in JSON format.");
         return path;
+    }
+
+    /**
+     * Scan all files in the specified directory and returns the WSB comments from there.
+     * @param pathToDir
+     * @return
+     * @throws IOException
+     */
+    public static ArrayList<ArrayList<WSBComment>>  gatherJsonFromComments(Path pathToDir) throws IOException {
+        ArrayList<ArrayList<WSBComment>> wsbComments = new ArrayList<>();
+        if (pathToDir.toFile().isDirectory()) {
+            List<Path> files = new ArrayList<>();
+            try (Stream<Path> paths = Files.walk(Paths.get(String.valueOf(pathToDir)))) {
+                files =  paths
+                        .filter(Files::isRegularFile)
+                        .collect(Collectors.toList());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            for (Path path: files) {
+                wsbComments.add(JSONParser.parseCommentJson(Files.readString(path)));
+            }
+        }
+        System.out.println("Finished parsing comments.");
+        return wsbComments;
     }
 
     // Files generated on disk can't have special characters, they get replaced by '_'
