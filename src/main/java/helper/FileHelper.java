@@ -53,8 +53,7 @@ public class FileHelper {
         return subredditFile;
     }
 
-    public static void gatherCommentsFromPosts(ArrayList<WSBPost> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException { ;
-        List<File> wsbCommentFiles = new ArrayList<>();
+    public static Path gatherCommentsFromPosts(ArrayList<WSBPost> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException { ;
         File dir = createDirectory(directoryForComments);
         for (WSBPost wsbPost : wsbPosts) {
             if (wsbPost.getCommentCount() < 1000) {
@@ -76,9 +75,7 @@ public class FileHelper {
                         System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
                         Thread.sleep(5000);
                     }
-
-                    wsbCommentFiles.add(moveFilesToDirectory(dir, file));
-
+                    moveFilesToDirectory(dir, file);
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                     System.exit(-1);
@@ -91,6 +88,7 @@ public class FileHelper {
         Path path = Paths.get(pathToProject + directoryForComments);
         deleteFilesOlderThanADay(path.toFile());
         System.out.println("Finished gathering comments in JSON format.");
+        return path;
     }
 
     // Files generated on disk can't have special characters, they get replaced by '_'
