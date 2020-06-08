@@ -5,30 +5,21 @@ import wsb.WSBPosts;
 import java.io.*;
 import java.nio.file.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-
-/**
- * This class contains hardcoded paths, am autistic and will change them later.
- */
+import static helper.FilePaths.*;
 
 public class FileHelper {
 
-    // Change path to file on your environment
-    private static final String pathToFile = "E:\\dev\\Projects\\WSB-Scraper\\";
-    private static File file = null;
-    private static final List<String> specialCharacters = Arrays.asList("?", "%", "/", ":");
-
-    public static String generateJsonContent(String pathToPythonScript, String commandType, String subredditName, String filterBy, int nrOfPosts, String format) throws IOException {
+    public static String generateJsonContent(String pathToPythonScript, String commandType, String subredditName, String filterBy, int nrOfPosts, String format) throws IOException, InterruptedException {
         try {
             String command = "python " + pathToPythonScript + " -" + commandType + " " + subredditName + " " + filterBy + " " + nrOfPosts + " --" + format;
             System.out.println("Executing command: " + command);
             Process p = Runtime.getRuntime().exec(command);
 
-            file = new File(pathToFile + subredditName + ".json");
+            file = new File(pathToProject +  subredditName + ".json");
 
             // Give the script 5 seconds to create the file.
-            //Thread.sleep(5000);
+            Thread.sleep(5000);
 
             // Check if the file exists on disk, if not wait until the file gets created.
             while(!file.exists()) {
@@ -42,15 +33,22 @@ public class FileHelper {
             System.exit(-1);
         }
 
-        return Files.readString(file.toPath());
+        // Create directory to move subreddit json to
+        File dir = createDirectory(directoryForSubreddit);
+
+        // Move the json file to the created directory
+        subredditFile = moveFilesToDirectory(dir, file);
+
+        return Files.readString(subredditFile.toPath());
     }
 
     public static File getFile() {
-        return file;
+        return subredditFile;
     }
 
-    public static List<String> gatherCommentsFromPosts(ArrayList<WSBPosts> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException {
+    public static void gatherCommentsFromPosts(ArrayList<WSBPosts> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException {
         List<String> wsbCommentJsons = new ArrayList<>();
+        File dir = createDirectory(directoryForComments);
         for (WSBPosts wsbPost : wsbPosts) {
             if (wsbPost.getCommentCount() < 1000) {
                 try {
@@ -63,15 +61,16 @@ public class FileHelper {
                     String fileTitle = replaceSpecialCharacters(wsbPost.getTitle());
 
                     // Check if the file exists on disk, if not wait until the file gets created.
-                    File file = new File(pathToFile + fileTitle + ".json");
-                    Thread.sleep(5000);
+                    File file = new File(pathToProject + fileTitle + ".json");
+                    //Thread.sleep(5000);
 
                     while (!file.exists()) {
                         System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
                         Thread.sleep(5000);
                     }
 
-                    wsbCommentJsons.add(file.getAbsolutePath());
+                    wsbCommentJsons.add(moveFilesToDirectory(dir, file).getAbsolutePath());
+                    file.delete();
                 } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                     System.exit(-1);
@@ -82,7 +81,6 @@ public class FileHelper {
             }
         }
         System.out.println("Finished gathering comments in JSON format.");
-        return wsbCommentJsons;
     }
 
     // Files generated on disk can't have special characters, they get replaced by '_'
@@ -93,5 +91,34 @@ public class FileHelper {
             }
         }
         return postTitle;
+    }
+
+    // Create directory if it doesn't already exist
+    private static File createDirectory(String directoryName) {
+        File dir = new File(pathToProject + directoryName);
+        boolean success = true;
+
+        if (!dir.exists()) {
+            success = dir.mkdir();
+        }
+        if (!success) {
+            System.out.println("Error at creating directory");
+            System.exit(-1);
+        }
+
+        return dir;
+    }
+
+    // Move json file to specific directory
+    private static File moveFilesToDirectory(File directory, File fileToMove) throws IOException {
+        File newFile = null;
+
+        if (fileToMove.exists() && directory.exists()) {
+            newFile = new File(directory.getAbsolutePath() + "\\" + fileToMove.getName());
+            fileToMove.renameTo(newFile);
+            fileToMove.delete();
+        }
+
+        return newFile;
     }
 }
