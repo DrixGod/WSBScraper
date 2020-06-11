@@ -6,19 +6,17 @@ import org.json.*;
 
 import java.util.*;
 
-import static helper.FilePaths.nrOfPosts;
+import static helper.Generics.nrOfPosts;
 
 public class JSONParser {
 
     public static ArrayList<WSBPost> parseSubredditJson(String jsonString) {
         ArrayList<WSBPost> wsbList = new ArrayList<>();
-        WSBPost wsb = null;
-        JSONObject jsonObject = new JSONObject(jsonString);
         ArrayList<JSONObject> posts = new ArrayList<>();
-        JSONArray arr = null;
-        int i = 1;
+        JSONObject jsonObject = new JSONObject(jsonString);
+        WSBPost wsb = null;
 
-        // 25 posts on the frontpage
+        int i = 1;
         while (i < nrOfPosts) {
             JSONObject post = jsonObject.getJSONObject("Post " + i);
             posts.add(post);
@@ -27,22 +25,21 @@ public class JSONParser {
 
         // convert JSONObject to WSB
         for(JSONObject post : posts) {
-            // TODO add isNull check for every element
             wsb = new WSBPost(
-                    post.getString("Title"),
-                    post.isNull("Flair")  ? "" : post.getString("Flair"),
-                    post.getString("Date Created"),
-                    post.getInt("Upvotes"),
-                    post.getDouble("Upvote Ratio"),
-                    post.getString("ID"),
-                    post.getString("Edited?"),
-                    post.getBoolean("Is Locked?"),
-                    post.getBoolean("NSFW?"),
-                    post.getBoolean("Is Spoiler?"),
-                    post.getBoolean("Stickied?"),
+                    post.isNull("Title") ? "" : post.getString("Title"),
+                    post.isNull("Flair") ? "" : post.getString("Flair"),
+                    post.isNull("Date Created\"")  ? "" : post.getString("Date Created"),
+                    post.isNull("Upvotes") ? 0 : post.getInt("Upvotes"),
+                    post.isNull("Upvote Ratio") ? 0 : post.getDouble("Upvote Ratio"),
+                    post.isNull("ID") ? "" : post.getString("ID"),
+                    post.isNull("Edited?") ? "" : post.getString("Edited?"),
+            !post.isNull("Is Locked?") && post.getBoolean("Is Locked?"),
+             !post.isNull("NSFW?") && post.getBoolean("NSFW?"),
+            !post.isNull("Is Spoiler?") && post.getBoolean("Is Spoiler?"),
+            !post.isNull("Stickied?") && post.getBoolean("Stickied?"),
                     post.getString("URL"),
-                    post.getInt("Comment Count"),
-                    post.getString("Text"));
+                    post.isNull("Comment Count") ? 0 : post.getInt("Comment Count"),
+                    post.isNull("Text") ? "" : post.getString("Text"));
             wsbList.add(wsb);
         }
 
@@ -57,9 +54,7 @@ public class JSONParser {
 
         for (Map.Entry<String, Object> stringObjectEntry : jsonObject.toMap().entrySet()) {
             String value = ((Map.Entry) stringObjectEntry).getValue().toString();
-            String[] helperArr = value.split("Comment ID=");
-            String[] myValue = helperArr[1].split(",");
-            comments.add(jsonObject.getJSONArray(myValue[0]));
+            comments.add(jsonObject.getJSONArray(getCommentID(value)));
         }
 
         // convert JSONArray to WSB
@@ -87,5 +82,11 @@ public class JSONParser {
             wsbList.add(wsb);
         }
         return wsbList;
+    }
+
+    // Split the given string and get the ID
+    private static String getCommentID(String str) {
+        String[] arr = str.split("Comment ID=");
+        return (arr[1].split(","))[0];
     }
 }

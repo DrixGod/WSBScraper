@@ -59,4 +59,19 @@ public class WSBComment {
     public boolean isCommentIsStickied() {
         return commentIsStickied;
     }
+
+    @Override
+    public String toString() {
+        return "WSBComment{" +
+                "parentID='" + parentID + '\'' +
+                ", commentID='" + commentID + '\'' +
+                ", commentAuthor='" + commentAuthor + '\'' +
+                ", commentDate='" + commentDate + '\'' +
+                ", commentUpvotes=" + commentUpvotes +
+                ", commentText='" + commentText + '\'' +
+                ", commentIsEdited=" + commentIsEdited +
+                ", commentIsSubmitter=" + commentIsSubmitter +
+                ", commentIsStickied=" + commentIsStickied +
+                '}';
+    }
 }

@@ -1,22 +1,23 @@
 package helper;
 
+import enums.Ticker;
 import wsb.WSBComment;
 import wsb.WSBPost;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static helper.FilePaths.*;
+import static helper.Generics.*;
+import static java.lang.Thread.sleep;
 
 public class FileHelper {
 
-    public static File analyseDirectory;
+    private static File analyseDirectory;
+    private static File file = null;
 
     public static File createAnalyseDirectory() {
         analyseDirectory = new File(pathToProject + directoryForAnalyse );
@@ -35,12 +36,12 @@ public class FileHelper {
             file = new File(pathToProject +  subredditName + ".json");
 
             // Give the app 5 seconds to create the file.
-            Thread.sleep(5000);
+            sleep(5000);
 
             // Check if the file exists on disk, if not wait until the file gets created.
-            while(!file.exists()) {
+            while (!file.exists()) {
                 System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
-                Thread.sleep(5000);
+                sleep(5000);
             }
 
         } catch (IOException | InterruptedException e) {
@@ -52,7 +53,7 @@ public class FileHelper {
         File dir = createDirectory(directoryForSubreddit);
 
         // Move the json file to the created directory
-        subredditFile = moveFilesToDirectory(dir, file);
+        File subredditFile = moveFilesToDirectory(dir, file);
 
         return Files.readString(subredditFile.toPath());
     }
@@ -60,38 +61,37 @@ public class FileHelper {
     public static Path gatherCommentsFromPosts(ArrayList<WSBPost> wsbPosts, String pathToPythonScript, int nrOfComments, String format) throws IOException { ;
         File dir = createDirectory(directoryForComments);
         for (WSBPost wsbPost : wsbPosts) {
-            if (wsbPost.getCommentCount() < 1000) {
-                try {
+            try {
+                if (wsbPost.getCommentCount() < 1000) {
                     System.out.println("Post: " + wsbPost.getTitle());
-
                     // Call the python script with the -c (comments) argument and the post URL to generate a .json file containing the comments
-                    if (wsbPost.getURl().contains("www.reddit.com")) {
+                    if (wsbPost.getURl().contains("www.reddit.com") && !wsbPost.getTitle().contains("Dow down over 500")) {
                         String command = "python " + pathToPythonScript + " -c " + wsbPost.getURl() + " " + nrOfComments + " --" + format;
                         Process p = Runtime.getRuntime().exec(command);
-
 
                         String fileTitle = replaceSpecialCharacters(wsbPost.getTitle());
                         File file = new File(pathToProject + fileTitle + ".json");
 
                         // Give the app 5 seconds to create the file.
-                        Thread.sleep(5000);
+                        sleep(5000);
 
                         // Check if the file exists on disk, if not wait until the file gets created.
                         while (!file.exists()) {
                             System.out.println("File " + file + " doesn't exist yet, waiting for it to be generated...");
-                            Thread.sleep(5000);
+                            sleep(5000);
                         }
+
                         moveFilesToDirectory(dir, file);
+
                     } else {
                         System.out.println("Post " + wsbPost.getTitle() + " is linking to some other site.");
                     }
-                } catch (IOException | InterruptedException e) {
-                    e.printStackTrace();
-                    System.exit(-1);
+                } else {
+                    System.out.println("Post " + wsbPost.getTitle() + " has too many comments, skipping it.");
                 }
-            }
-            else {
-                System.out.println("Skipping post " + wsbPost.getTitle() + " because it has " + wsbPost.getCommentCount() + " comments.");
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+                System.exit(-1);
             }
         }
         Path path = Paths.get(pathToProject + directoryForComments);
@@ -128,41 +128,35 @@ public class FileHelper {
     // Example for RCL
     public static void generateResults(ArrayList<WSBPost> wsbPosts, ArrayList<ArrayList<WSBComment>> wsbComments) throws IOException {
         System.out.println("Generating results...");
-
-        File resultsFile = new File(analyseDirectory + "\\results_titles.txt");
-        resultsFile.createNewFile();
-        Path pathToResultFile = resultsFile.toPath();
-
-        for (WSBPost wsbPost : wsbPosts) {
-            if (wsbPost.getTitle().contains("RCL")
-                    || wsbPost.getTitle().contains("Royal")
-                    || wsbPost.getTitle().contains("Caribbean")
-                    || wsbPost.getTitle().contains("Cruises")) {
-                System.out.println("Found token: " + wsbPost.getTitle());
-                Files.writeString(pathToResultFile, wsbPost.getTitle(), StandardOpenOption.APPEND);
-            }
-            if (wsbPost.getText().contains("RCL") ||
-                    wsbPost.getText().contains("Royal")
-                    || wsbPost.getText().contains("Caribbean")
-                    || wsbPost.getText().contains("Cruises")) {
-                Files.writeString(pathToResultFile, wsbPost.getText(), StandardOpenOption.APPEND);
-            }
-        }
-
-        resultsFile = new File(analyseDirectory + "\\results_comments.txt");
-        resultsFile.createNewFile();
-        pathToResultFile = resultsFile.toPath();
         WSBComment wsbComment = null;
 
-        for (int i = 0; i < wsbComments.size(); i++) {
-            for (int j = 0; j < wsbComments.get(i).size(); j++) {
-                wsbComment = wsbComments.get(i).get(j);
-                if (wsbComment.getCommentText().contains("RCL") ||
-                        wsbComment.getCommentText().contains("Royal") ||
-                        wsbComment.getCommentText().contains("Caribbean") ||
-                        wsbComment.getCommentText().contains("Cruises")) {
-                    System.out.println("Found token: " + wsbComment.getCommentText());
-                    Files.writeString(pathToResultFile, wsbComment.getCommentText() + " Upvotes: " + wsbComment.getCommentUpvotes(), StandardOpenOption.APPEND);
+        File resultsFileForPosts = new File(analyseDirectory + "\\" + resultsForPosts);
+        resultsFileForPosts.createNewFile();
+        Path pathToResultFileForPosts = resultsFileForPosts.toPath();
+
+        File resultsFileForComments = new File(analyseDirectory + "\\" + resultsForComments);
+        resultsFileForComments.createNewFile();
+        Path pathToResultFile = resultsFileForComments.toPath();
+
+        for (Map.Entry<String, Ticker> ticker : tickers.entrySet()) {
+
+            for (WSBPost wsbPost : wsbPosts) {
+                if (wsbPost.getTitle().contains(ticker.getKey())) {
+                    System.out.println("Found token: " + wsbPost.getTitle());
+                    Files.writeString(pathToResultFileForPosts, wsbPost.getTitle() + "\n", StandardOpenOption.APPEND);
+                }
+                if (wsbPost.getText().contains(ticker.getKey())) {
+                    Files.writeString(pathToResultFileForPosts, wsbPost.getText(), StandardOpenOption.APPEND);
+                }
+            }
+
+            for (ArrayList<WSBComment> comment : wsbComments) {
+                for (WSBComment value : comment) {
+                    wsbComment = value;
+                    if (wsbComment.getCommentText().contains(ticker.getKey())) {
+                        System.out.println("Found token: " + wsbComment.getCommentText());
+                        Files.writeString(pathToResultFile, wsbComment.getCommentText() + " Upvotes: " + wsbComment.getCommentUpvotes() + "\n", StandardOpenOption.APPEND);
+                    }
                 }
             }
         }
@@ -184,13 +178,16 @@ public class FileHelper {
     private static File createDirectory(String directoryName) {
         File dir = new File(pathToProject + directoryName);
         boolean success = true;
+
         if (!dir.exists()) {
             success = dir.mkdir();
         }
+
         if (!success) {
             System.out.println("Error at creating directory");
             System.exit(-1);
         }
+
         return dir;
     }
 
@@ -198,6 +195,7 @@ public class FileHelper {
     private static File moveFilesToDirectory(File directory, File fileToMove) throws IOException {
         File newFile = null;
         String pathToFile = directory.getAbsolutePath() + "\\" + fileToMove.getName();
+
         if (fileToMove.exists() && directory.exists()) {
             Files.move(Paths.get(String.valueOf(fileToMove.toPath())), Paths.get(pathToFile), StandardCopyOption.REPLACE_EXISTING);
             newFile = new File(pathToFile);
@@ -208,21 +206,20 @@ public class FileHelper {
 
     /**
      * Since we are getting json files from comments, if we run this app every day we will
-     * have very old posts tha we have to manually delete. Calling this method will delete
+     * have very old posts that we have to manually delete. Calling this method will delete
      * any file that wasn't modified in 1 day.
      * @param directory: the directory to check files
      */
     private static void deleteFilesOlderThanADay(File directory){
-        List<Path> files = new ArrayList<>();
+        List<Path> filePaths = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(Paths.get(String.valueOf(directory.toPath())))) {
-            files =  paths
+            filePaths =  paths
                     .filter(Files::isRegularFile)
                     .collect(Collectors.toList());
         } catch (IOException e) {
             e.printStackTrace();
         }
-        for (Path path: files) {
-
+        for (Path path: filePaths) {
             long diff = new Date().getTime() - path.toFile().lastModified();
 
             if (diff > 24 * 60 * 60 * 1000) {
